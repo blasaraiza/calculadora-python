@@ -7,8 +7,7 @@ app = Flask(__name__)
 
 # Configura aquí los datos que te da Hostinger
 DB_CONFIG = {
-    'localhost': '185.212.70.165',
-    'host': 'localhost', # Suele ser una IP o subdominio
+    'host': '185.212.70.165', # Suele ser una IP o subdominio
     'user': 'u799314910_gioco',
     'password': 'Maalan1965',
     'database': 'u799314910_gioco',
