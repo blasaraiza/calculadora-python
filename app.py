@@ -1,9 +1,35 @@
-from flask import Flask, render_template_string, request
+import os
+import json
+from flask import Flask, render_template_string, request, redirect, url_for
 
 app = Flask(__name__)
 
-# Diseño con Bootstrap 5 y espaciado mejorado
-HTML_BOOTSTRAP = '''
+# Nombre del archivo donde guardaremos los datos
+ARCHIVO_DATOS = "historial.txt"
+
+def guardar_en_archivo(nuevo_calculo):
+    """Guarda un cálculo al principio del archivo y mantiene solo 5."""
+    historial = cargar_historial()
+    historial.insert(0, nuevo_calculo)
+    historial = historial[:5] # Solo guardamos los últimos 5
+    
+    with open(ARCHIVO_DATOS, "w") as f:
+        for item in historial:
+            # Guardamos cada cálculo como una línea de texto tipo JSON
+            f.write(json.dumps(item) + "\n")
+
+def cargar_historial():
+    """Lee el archivo y devuelve una lista de diccionarios."""
+    if not os.path.exists(ARCHIVO_DATOS):
+        return []
+    
+    historial = []
+    with open(ARCHIVO_DATOS, "r") as f:
+        for linea in f:
+            historial.append(json.loads(linea.strip()))
+    return historial
+
+HTML_MODERNO = '''
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12,99 +38,83 @@ HTML_BOOTSTRAP = '''
     <title>Calculadora Pro</title>
     <link href="https://jsdelivr.net" rel="stylesheet">
     <style>
-        body { 
-            background-color: #f8f9fa; 
-            min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-        }
-        .card { 
-            border: none; 
-            border-radius: 20px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.05); 
-            padding: 2rem; /* Más espacio interno en la tarjeta */
-        }
-        .form-control {
-            padding: 0.8rem; /* Inputs más altos y cómodos */
-            border-radius: 10px;
-        }
-        .btn-primary { 
-            background-color: #4e73df; 
-            border: none; 
-            border-radius: 10px; 
-            padding: 12px; 
-            transition: 0.3s;
-        }
-        .btn-primary:hover { background-color: #2e59d9; transform: translateY(-2px); }
-        .resultado-box {
-            margin-top: 2.5rem; /* Separación extra para el resultado */
-            border-radius: 15px;
-            padding: 1.5rem;
-        }
+        body { background-color: #f0f2f5; min-height: 100vh; padding-top: 50px; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .btn-primary { border-radius: 8px; padding: 10px; background-color: #4e73df; border: none; }
+        .historial-item { font-size: 0.9rem; border-bottom: 1px solid #eee; padding: 10px 0; }
+        .historial-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-5">
-            <div class="card">
-                <h2 class="text-center mb-5 text-dark fw-bold">Calcular Porcentaje</h2>
-                
+            <div class="card p-4 mb-4">
+                <h3 class="text-center mb-4 fw-bold">📊 Calculadora %</h3>
                 <form method="POST">
-                    <!-- Separamos el primer grupo -->
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Número base</label>
-                        <input type="number" step="any" name="numero" class="form-control" placeholder="Ingrese la cantidad" required>
+                        <input type="number" step="any" min="0" name="numero" class="form-control" required>
                     </div>
-                    
-                    <!-- Separamos el segundo grupo -->
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Porcentaje (%)</label>
-                        <input type="number" step="any" name="porcentaje" class="form-control" placeholder="Ingrese el %" required>
+                        <input type="number" step="any" min="0" name="porcentaje" class="form-control" required>
                     </div>
-                    
-                    <!-- Separamos el botón de los inputs -->
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary text-white fw-bold">CALCULAR AHORA</button>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary fw-bold">CALCULAR</button>
+                        <a href="/" class="btn btn-light btn-sm text-muted">Limpiar Formulario</a>
                     </div>
                 </form>
-
                 {% if resultado %}
-                <div class="resultado-box alert alert-primary border-0 shadow-sm animate__animated animate__fadeIn">
-                    <h5 class="text-center text-primary mb-3">Resultado Obtenido</h5>
-                    <div class="text-center">
-                        <small class="text-muted">El {{ p_original }}% de {{ n_original }} es:</small>
-                        <div class="fs-2 fw-bold text-dark mt-2">
-                            ${{ "{:,.2f}".format(resultado) }}
-                        </div>
-                    </div>
+                <div class="alert alert-primary mt-4 text-center">
+                    <small class="text-uppercase fw-bold">Resultado</small>
+                    <h2 class="fw-bold mb-0">${{ "{:,.2f}".format(resultado) }}</h2>
                 </div>
                 {% endif %}
-                
             </div>
-            <p class="text-center mt-4 text-muted small">Python + Flask Local Server</p>
+
+            {% if historial %}
+            <div class="card p-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="text-uppercase fw-bold text-secondary mb-0">Historial Guardado</h6>
+                    <a href="/borrar_historial" class="btn btn-outline-danger btn-sm">BORRAR ARCHIVO</a>
+                </div>
+                {% for item in historial %}
+                <div class="historial-item d-flex justify-content-between">
+                    <span>{{ item.p }}% de ${{ "{:,.2f}".format(item.n) }}</span>
+                    <span class="fw-bold text-dark">${{ "{:,.2f}".format(item.r) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
-
 </body>
 </html>
 '''
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
+    resultado_actual = None
     if request.method == 'POST':
-        try:
-            n = float(request.form['numero'])
-            p = float(request.form['porcentaje'])
-            # Lógica: Número + (Número * Porcentaje / 100)
-            resultado_final = n + (n * (p / 100))
-            return render_template_string(HTML_BOOTSTRAP, resultado=resultado_final, n_original=n, p_original=p)
-        except:
-            return render_template_string(HTML_BOOTSTRAP)
+        n = float(request.form['numero'])
+        p = float(request.form['porcentaje'])
+        resultado_actual = n + (n * (p / 100))
+        
+        # Guardamos físicamente en el archivo
+        guardar_en_archivo({"n": n, "p": p, "r": resultado_actual})
     
-    return render_template_string(HTML_BOOTSTRAP)
+    # Cargamos el historial desde el archivo para mostrarlo
+    historial_lista = cargar_historial()
+    return render_template_string(HTML_MODERNO, resultado=resultado_actual, historial=historial_lista)
+
+@app.route('/borrar_historial')
+def borrar_historial():
+    # Borramos el archivo físico
+    if os.path.exists(ARCHIVO_DATOS):
+        os.remove(ARCHIVO_DATOS)
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True)
