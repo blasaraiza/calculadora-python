@@ -151,21 +151,6 @@ HTML_MODERNO = '''
 </html>
 '''
 
-@app.route('/', methods=['GET', 'POST'])
-def home():
-    resultado_actual = None
-    if request.method == 'POST':
-        n = float(request.form['numero'])
-        p = float(request.form['porcentaje'])
-        resultado_actual = n + (n * (p / 100))
-        
-        # Guardamos físicamente en el archivo
-        guardar_en_archivo({"n": n, "p": p, "r": resultado_actual})
-    
-    # Cargamos el historial desde el archivo para mostrarlo
-    historial_lista = cargar_historial()
-    return render_template_string(HTML_MODERNO, resultado=resultado_actual, historial=historial_lista)
-
 @app.route('/borrar_historial')
 def borrar_historial():
     # Borramos el archivo físico
