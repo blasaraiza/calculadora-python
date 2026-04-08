@@ -5,6 +5,63 @@ from flask import Flask, render_template_string, request, redirect, url_for
 
 app = Flask(__name__)
 
+# Configura aquí los datos que te da Hostinger
+DB_CONFIG = {
+    'localhost': '185.212.70.165',
+    'host': 'localhost', # Suele ser una IP o subdominio
+    'user': 'u799314910_gioco',
+    'password': 'Maalan1965',
+    'database': 'u799314910_gioco',
+    'cursorclass': pymysql.cursors.DictCursor
+}
+
+def obtener_conexion():
+    return pymysql.connect(**DB_CONFIG)
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    resultado_actual = None
+    if request.method == 'POST':
+        n = float(request.form['numero'])
+        p = float(request.form['porcentaje'])
+        res = n + (n * (p / 100))
+        
+        # INSERTAR EN HOSTINGER
+        conn = obtener_conexion()
+        try:
+            with conn.cursor() as cursor:
+                sql = "INSERT INTO historial (numero, porcentaje, resultado) VALUES (%s, %s, %s)"
+                cursor.execute(sql, (n, p, res))
+            conn.commit()
+        finally:
+            conn.close()
+        resultado_actual = res
+
+    # LEER DE HOSTINGER (Últimos 5)
+    historial_lista = []
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT numero as n, porcentaje as p, resultado as r FROM historial ORDER BY id DESC LIMIT 5")
+            historial_lista = cursor.fetchall()
+    finally:
+        conn.close()
+
+    return render_template_string(HTML_MODERNO, resultado=resultado_actual, historial=historial_lista)
+
+@app.route('/borrar_historial')
+def borrar_historial():
+    conn = obtener_conexion()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM historial")
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect(url_for('home'))
+
+# (Aquí va el resto de tu variable HTML_MODERNO que ya teníamos)
+
 # Nombre del archivo donde guardaremos los datos
 ARCHIVO_DATOS = "historial.txt"
 
